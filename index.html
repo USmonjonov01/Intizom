@@ -665,12 +665,39 @@ document.getElementById('saveTaskBtn').addEventListener('click', async ()=>{
 });
 
 // ---------- Notifications (voice) ----------
+let audioCtx = null;
+function getAudioCtx(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+// Plays a short two-tone chime, entirely generated in-browser (no mp3/asset file needed).
+function playChime(){
+  try{
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    [880, 1320].forEach((freq, i)=>{
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      const start = now + i*0.16;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.25, start+0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start+0.32);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start+0.34);
+    });
+  }catch(e){}
+}
 document.getElementById('notifToggle').addEventListener('click', ()=>{
   notifOn = !notifOn;
   document.getElementById('notifToggle').classList.toggle('on', notifOn);
-  if(notifOn) speak("Ovozli eslatmalar yoqildi");
+  if(notifOn){ getAudioCtx(); playChime(); }
 });
 function speak(text){
+  playChime();
   try{
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'uz-UZ';
