@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kun Nazorati — Haftalik Tartib-Intizom Jadvali</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12161C;
+    --panel:#1A2029;
+    --panel-2:#212936;
+    --border:#2A3341;
+    --text:#EDEEF0;
+    --text-dim:#8A93A3;
+    --gold:#E8B04B;
+    --teal:#4FBF9F;
+    --rose:#E1636B;
+    --violet:#8C8FE0;
+    --blue:#5B8DEF;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  #app{max-width:1180px;margin:0 auto;padding:20px 20px 60px;}
+
+  /* Header */
+  .header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:20px;border-bottom:1px solid var(--border);margin-bottom:22px;}
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,var(--gold),#c98a2e);display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk';font-weight:700;color:#1a1206;font-size:18px;}
+  .brand-text h1{font-size:19px;margin:0;font-weight:600;letter-spacing:-0.01em;}
+  .brand-text p{margin:2px 0 0;font-size:12px;color:var(--text-dim);}
+  .clock{text-align:right;}
+  .clock .time{font-size:22px;font-weight:600;letter-spacing:0.02em;}
+  .clock .date{font-size:12px;color:var(--text-dim);margin-top:2px;}
+
+  /* Week nav */
+  .weeknav{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:18px;}
+  .weeknav button{background:var(--panel-2);border:1px solid var(--border);color:var(--text);width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:.15s;}
+  .weeknav button:hover{border-color:var(--gold);color:var(--gold);}
+  .weeknav .label{font-size:14px;color:var(--text-dim);min-width:220px;text-align:center;}
+  .weeknav .label b{color:var(--text);font-weight:600;}
+  .weeknav .today-btn{font-size:11px;padding:5px 10px;width:auto;height:auto;border-radius:20px;color:var(--text-dim);}
+
+  /* Tabs */
+  .tabs{display:flex;gap:6px;margin-bottom:20px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:5px;}
+  .tab{flex:1;text-align:center;padding:10px 12px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text-dim);transition:.15s;user-select:none;}
+  .tab.active{background:var(--panel-2);color:var(--gold);}
+  .panel{display:none;}
+  .panel.active{display:block;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:16px;}
+  .card h2{font-size:14px;margin:0 0 14px;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
+
+  /* Timeline (signature element) */
+  .timeline-wrap{overflow-x:auto;}
+  .timeline{min-width:680px;}
+  .tl-hours{display:grid;grid-template-columns:64px 1fr;font-size:10px;color:var(--text-dim);margin-bottom:6px;}
+  .tl-hours .spacer{}
+  .tl-hours .marks{position:relative;height:16px;}
+  .tl-hours .marks span{position:absolute;transform:translateX(-50%);}
+  .tl-row{display:grid;grid-template-columns:64px 1fr;align-items:center;height:30px;position:relative;}
+  .tl-row .day-label{font-size:11px;color:var(--text-dim);font-weight:500;}
+  .tl-row .day-label.today{color:var(--gold);font-weight:600;}
+  .tl-track{position:relative;height:20px;background:var(--panel-2);border-radius:5px;overflow:hidden;}
+  .tl-block{position:absolute;top:1px;bottom:1px;border-radius:3px;opacity:.9;}
+  .tl-block.st-null{background:#3A4353;}
+  .tl-block.st-done{background:var(--teal);}
+  .tl-block.st-missed{background:var(--rose);}
+  .tl-block.st-excused{background:var(--violet);}
+  .tl-now{position:absolute;top:0;bottom:0;width:2px;background:var(--gold);box-shadow:0 0 6px var(--gold);z-index:5;}
+
+  /* Routine editor */
+  .add-form{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);}
+  .field{display:flex;flex-direction:column;gap:4px;}
+  .field label{font-size:11px;color:var(--text-dim);}
+  .field input{background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;}
+  .field input[type=time]{font-family:'IBM Plex Mono';}
+  .field.grow{flex:1;min-width:160px;}
+  .btn{background:var(--gold);color:#1a1206;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;}
+  .btn:hover{filter:brightness(1.08);}
+  .btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text-dim);}
+  .btn.ghost:hover{color:var(--text);border-color:var(--text-dim);}
+  .btn.sm{padding:6px 10px;font-size:12px;}
+
+  table.routine-table{width:100%;border-collapse:collapse;font-size:13px;}
+  table.routine-table th{text-align:left;color:var(--text-dim);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:6px 8px;border-bottom:1px solid var(--border);}
+  table.routine-table td{padding:8px;border-bottom:1px solid var(--border);vertical-align:middle;}
+  table.routine-table td.time{font-family:'IBM Plex Mono';color:var(--text-dim);white-space:nowrap;font-size:12px;}
+  .status-cell{width:30px;text-align:center;}
+  .status-dot{width:24px;height:24px;border-radius:7px;border:1.5px solid var(--border);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;transition:.12s;background:var(--panel-2);}
+  .status-dot.done{background:rgba(79,191,159,.18);border-color:var(--teal);color:var(--teal);}
+  .status-dot.missed{background:rgba(225,99,107,.18);border-color:var(--rose);color:var(--rose);}
+  .status-dot.excused{background:rgba(140,143,224,.18);border-color:var(--violet);color:var(--violet);}
+  .del-btn{color:var(--text-dim);cursor:pointer;font-size:12px;background:none;border:none;}
+  .del-btn:hover{color:var(--rose);}
+  .empty-hint{color:var(--text-dim);font-size:13px;padding:20px 0;text-align:center;}
+
+  /* Stats */
+  .stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+  .stat-box{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:14px;}
+  .stat-box .num{font-family:'Space Grotesk';font-size:24px;font-weight:700;}
+  .stat-box .lbl{font-size:11px;color:var(--text-dim);margin-top:2px;}
+  .stat-box.done .num{color:var(--teal);}
+  .stat-box.missed .num{color:var(--rose);}
+  .stat-box.excused .num{color:var(--violet);}
+  .stat-box.rate .num{color:var(--gold);}
+
+  .compare-bars{display:flex;flex-direction:column;gap:10px;}
+  .bar-row{display:grid;grid-template-columns:110px 1fr 50px;align-items:center;gap:10px;font-size:12px;}
+  .bar-track{height:10px;background:var(--panel-2);border-radius:5px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--gold),#c98a2e);}
+  .bar-fill.prev{background:linear-gradient(90deg,#5a6274,#454c5c);}
+
+  #aiResult{margin-top:14px;padding:14px;background:var(--panel-2);border-radius:10px;border:1px dashed var(--border);font-size:13px;line-height:1.6;color:var(--text);display:none;white-space:pre-wrap;}
+  #aiResult.show{display:block;}
+
+  textarea{width:100%;min-height:110px;background:var(--panel-2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px;font-family:inherit;font-size:13px;resize:vertical;}
+  .past-list{margin-top:14px;display:flex;flex-direction:column;gap:8px;}
+  .past-item{background:var(--panel-2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;}
+  .past-item .wk{font-size:11px;color:var(--gold);font-family:'IBM Plex Mono';margin-bottom:4px;}
+  .past-item .txt{font-size:13px;color:var(--text-dim);}
+
+  .settings-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;}
+  .switch{width:40px;height:22px;border-radius:11px;background:var(--panel-2);border:1px solid var(--border);cursor:pointer;position:relative;transition:.15s;}
+  .switch.on{background:var(--gold);}
+  .switch::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:.15s;}
+  .switch.on::after{left:20px;}
+
+  .toast-wrap{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:999;}
+  .toast{background:var(--panel-2);border:1px solid var(--gold);border-radius:10px;padding:12px 16px;font-size:13px;max-width:280px;box-shadow:0 8px 24px rgba(0,0,0,.4);animation:slidein .25s ease;}
+  @keyframes slidein{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}
+
+  @media (max-width:640px){
+    .stat-grid{grid-template-columns:repeat(2,1fr);}
+    .clock{text-align:left;}
+    .header{flex-direction:column;align-items:flex-start;}
+    table.routine-table{font-size:11px;}
+    .status-dot{width:20px;height:20px;font-size:11px;}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="brand">
+      <div class="brand-mark">24</div>
+      <div class="brand-text">
+        <h1>Kun Nazorati</h1>
+        <p>Haftalik tartib-intizom jadvali</p>
+      </div>
+    </div>
+    <div class="clock">
+      <div class="time mono" id="clockTime">--:--:--</div>
+      <div class="date" id="clockDate">—</div>
+    </div>
+  </div>
+
+  <div class="weeknav">
+    <button id="prevWeek">‹</button>
+    <div class="label"><b id="weekRange">—</b></div>
+    <button id="nextWeek">›</button>
+    <button class="today-btn" id="todayBtn">bugungi hafta</button>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="reja">Reja jadvali</div>
+    <div class="tab" data-tab="statistika">Statistika</div>
+    <div class="tab" data-tab="xulosa">Xulosa</div>
+  </div>
+
+  <!-- REJA -->
+  <div class="panel active" id="panel-reja">
+    <div class="card">
+      <h2>Haftalik ko'rinish</h2>
+      <div class="timeline-wrap">
+        <div class="timeline" id="timeline"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Kunlik tartib ro'yxati</h2>
+      <div class="add-form">
+        <div class="field"><label>Boshlanish</label><input type="time" id="newStart" value="07:00"></div>
+        <div class="field"><label>Tugash</label><input type="time" id="newEnd" value="08:00"></div>
+        <div class="field grow"><label>Ish nomi</label><input type="text" id="newTitle" placeholder="Masalan: Sport mashg'uloti"></div>
+        <button class="btn" id="addItem">+ Qo'shish</button>
+      </div>
+      <div id="routineTableWrap"></div>
+      <div style="margin-top:10px;font-size:11px;color:var(--text-dim);">
+        Belgini bosing: <span class="status-dot done" style="width:18px;height:18px;font-size:10px;">✓</span> bajarildi →
+        <span class="status-dot missed" style="width:18px;height:18px;font-size:10px;">✕</span> bajarilmadi →
+        <span class="status-dot excused" style="width:18px;height:18px;font-size:10px;">○</span> sababli → bo'sh
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Ovozli ogohlantirish</h2>
+      <div class="settings-row">
+        <div>
+          <div style="font-size:13px;">Ish boshlanishi/tugashidan 1:30 oldin va o'sha payt kelganda ovozli ogohlantirish</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-top:3px;">Ishlashi uchun bu sahifa ochiq turishi kerak.</div>
+        </div>
+        <div class="switch" id="soundSwitch"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATISTIKA -->
+  <div class="panel" id="panel-statistika">
+    <div class="card">
+      <h2>Shu hafta natijasi</h2>
+      <div class="stat-grid">
+        <div class="stat-box done"><div class="num" id="statDone">0</div><div class="lbl">bajarildi</div></div>
+        <div class="stat-box missed"><div class="num" id="statMissed">0</div><div class="lbl">bajarilmadi</div></div>
+        <div class="stat-box excused"><div class="num" id="statExcused">0</div><div class="lbl">sababli</div></div>
+        <div class="stat-box rate"><div class="num" id="statRate">0%</div><div class="lbl">bajarilish darajasi</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>O'tgan hafta bilan taqqoslash</h2>
+      <div class="compare-bars">
+        <div class="bar-row"><span>Shu hafta</span><div class="bar-track"><div class="bar-fill" id="barCur" style="width:0%"></div></div><span id="barCurLbl" class="mono">0%</span></div>
+        <div class="bar-row"><span>O'tgan hafta</span><div class="bar-track"><div class="bar-fill prev" id="barPrev" style="width:0%"></div></div><span id="barPrevLbl" class="mono">0%</span></div>
+      </div>
+      <button class="btn ghost" id="aiBtn" style="margin-top:16px;">✨ AI tahlil olish</button>
+      <div id="aiResult"></div>
+    </div>
+  </div>
+
+  <!-- XULOSA -->
+  <div class="panel" id="panel-xulosa">
+    <div class="card">
+      <h2>Shu haftaning xulosasi</h2>
+      <textarea id="conclusionText" placeholder="Bu hafta o'zingiz haqingizda nima o'rgandingiz? Nima yaxshi bordi, nimani yaxshilash kerak?"></textarea>
+      <button class="btn" id="saveConclusion" style="margin-top:10px;">Saqlash</button>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:8px;" id="saveStatus"></div>
+    </div>
+    <div class="card">
+      <h2>Oldingi xulosalar</h2>
+      <div class="past-list" id="pastList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+(function(){
+  const DAY_NAMES = ['Dushanba','Seshanba','Chorshanba','Payshanba','Juma','Shanba','Yakshanba'];
+  const DAY_SHORT = ['Du','Se','Cho','Pa','Ju','Sha','Ya'];
+
+  let routine = [];        // [{id,start,end,title}]
+  let weekOffset = 0;      // 0 = current real week
+  let currentWeekId = null;
+  let currentWeekData = { statuses:{}, conclusion:'' };
+  let prevWeekData = { statuses:{}, conclusion:'' };
+  let settings = { soundOn:true };
+  let notifiedSet = new Set();
+  let weeksIndex = [];
+
+  // ---------- storage helpers ----------
+  async function sGet(key){
+    try{ const r = await window.storage.get(key,false); return r? JSON.parse(r.value): null; }
+    catch(e){ return null; }
+  }
+  async function sSet(key,val){
+    try{ await window.storage.set(key, JSON.stringify(val), false); }
+    catch(e){ console.error('storage set failed', e); }
+  }
+
+  // ---------- date/week helpers ----------
+  function pad2(n){ return String(n).padStart(2,'0'); }
+  function timeToMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
+  function getMonday(d){ const date=new Date(d); const day=(date.getDay()+6)%7; date.setDate(date.getDate()-day); date.setHours(0,0,0,0); return date; }
+  function getWeekId(mondayDate){
+    const date = new Date(Date.UTC(mondayDate.getFullYear(), mondayDate.getMonth(), mondayDate.getDate()));
+    const dayNum = (date.getUTCDay()+6)%7;
+    date.setUTCDate(date.getUTCDate()-dayNum+3);
+    const firstThursday = new Date(Date.UTC(date.getUTCFullYear(),0,4));
+    const weekNum = 1 + Math.round(((date - firstThursday)/86400000 - 3 + ((firstThursday.getUTCDay()+6)%7))/7);
+    return `${date.getUTCFullYear()}-W${pad2(weekNum)}`;
+  }
+  function fmtDate(d){ return `${pad2(d.getDate())}.${pad2(d.getMonth()+1)}`; }
+  function targetMonday(){
+    const real = getMonday(new Date());
+    real.setDate(real.getDate()+ weekOffset*7);
+    return real;
+  }
+
+  // ---------- audio ----------
+  let audioCtx = null;
+  function beep(freq, dur, type){
+    if(!settings.soundOn) return;
+    try{
+      audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type||'sine'; osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.22, audioCtx.currentTime+0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime+dur/1000);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime+dur/1000+0.05);
+    }catch(e){}
+  }
+  function toast(msg){
+    const wrap = document.getElementById('toastWrap');
+    const el = document.createElement('div');
+    el.className='toast'; el.textContent = msg;
+    wrap.appendChild(el);
+    setTimeout(()=>{ el.remove(); }, 7000);
+  }
+
+  // ---------- render: clock ----------
+  function tickClock(){
+    const now = new Date();
+    document.getElementById('clockTime').textContent = `${pad2(now.getHours())}:${pad2(now.getMinutes())}:${pad2(now.getSeconds())}`;
+    document.getElementById('clockDate').textContent = `${DAY_NAMES[(now.getDay()+6)%7]}, ${fmtDate(now)}`;
+  }
+
+  // ---------- notifications ----------
+  function checkNotifications(){
+    if(!settings.soundOn || weekOffset!==0) return;
+    const now = new Date();
+    const todayStr = now.toDateString();
+    const nowSec = now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
+    routine.forEach(item=>{
+      const startSec = timeToMin(item.start)*60;
+      const endSec = timeToMin(item.end)*60;
+      const checks = [
+        {type:'preStart', target:startSec-90, msg:`"${item.title}" boshlanishiga 1:30 qoldi`, freq:660},
+        {type:'start', target:startSec, msg:`"${item.title}" boshlandi`, freq:880},
+        {type:'preEnd', target:endSec-90, msg:`"${item.title}" tugashiga 1:30 qoldi`, freq:660},
+        {type:'end', target:endSec, msg:`"${item.title}" tugadi`, freq:520},
+      ];
+      checks.forEach(c=>{
+        const key = todayStr+'-'+item.id+'-'+c.type;
+        if(notifiedSet.has(key)) return;
+        if(nowSec>=c.target && nowSec < c.target+8){
+          notifiedSet.add(key);
+          beep(c.freq, 260, c.type.startsWith('pre')?'triangle':'sine');
+          toast(c.msg);
+        }
+      });
+    });
+  }
+
+  // ---------- data load for a given week ----------
+  async function loadWeek(offset){
+    const monday = new Date(targetMondayFor(offset));
+    const wid = getWeekId(monday);
+    const data = await sGet('week:'+wid);
+    return data || { statuses:{}, conclusion:'' };
+  }
+  function targetMondayFor(offset){
+    const real = getMonday(new Date());
+    real.setDate(real.getDate()+offset*7);
+    return real;
+  }
+
+  async function saveCurrentWeek(){
+    await sSet('week:'+currentWeekId, currentWeekData);
+    if(!weeksIndex.includes(currentWeekId)){
+      weeksIndex.push(currentWeekId);
+      weeksIndex.sort();
+      await sSet('weeks-index', weeksIndex);
+    }
+  }
+
+  // ---------- render: week nav ----------
+  function renderWeekNav(){
+    const monday = targetMonday();
+    const sunday = new Date(monday); sunday.setDate(sunday.getDate()+6);
+    document.getElementById('weekRange').textContent =
+      (weekOffset===0? "Joriy hafta · ":"") + `${fmtDate(monday)} — ${fmtDate(sunday)}`;
+  }
+
+  // ---------- render: timeline ----------
+  function renderTimeline(){
+    const el = document.getElementById('timeline');
+    const monday = targetMonday();
+    const todayIdx = weekOffset===0 ? (new Date().getDay()+6)%7 : -1;
+    const nowMin = new Date().getHours()*60+new Date().getMinutes();
+
+    let hoursHtml = `<div class="tl-hours"><div class="spacer"></div><div class="marks">`;
+    for(let h=0; h<=24; h+=3){
+      hoursHtml += `<span style="left:${(h/24*100)}%">${pad2(h)}:00</span>`;
+    }
+    hoursHtml += `</div></div>`;
+
+    let rows = '';
+    for(let d=0; d<7; d++){
+      let blocks = '';
+      routine.forEach(item=>{
+        const s = timeToMin(item.start), e = timeToMin(item.end);
+        const left = (s/1440*100), width = Math.max((e-s)/1440*100, 0.6);
+        const status = (currentWeekData.statuses[item.id]||{})[d] || null;
+        blocks += `<div class="tl-block st-${status||'null'}" style="left:${left}%;width:${width}%;" title="${item.title} (${item.start}-${item.end})"></div>`;
+      });
+      let nowLine = '';
+      if(d===todayIdx){
+        nowLine = `<div class="tl-now" style="left:${(nowMin/1440*100)}%"></div>`;
+      }
+      rows += `<div class="tl-row">
+        <div class="day-label ${d===todayIdx?'today':''}">${DAY_SHORT[d]}</div>
+        <div class="tl-track">${blocks}${nowLine}</div>
+      </div>`;
+    }
+    el.innerHTML = hoursHtml + rows;
+  }
+
+  // ---------- render: routine table ----------
+  function renderRoutineTable(){
+    const wrap = document.getElementById('routineTableWrap');
+    if(routine.length===0){
+      wrap.innerHTML = `<div class="empty-hint">Hali kunlik ish qo'shilmagan. Yuqoridagi formadan qo'shing.</div>`;
+      return;
+    }
+    let head = `<tr><th style="min-width:90px;">Vaqt</th><th>Ish nomi</th>`;
+    DAY_SHORT.forEach(d=> head += `<th class="status-cell">${d}</th>`);
+    head += `<th></th></tr>`;
+
+    let body = '';
+    routine.slice().sort((a,b)=>timeToMin(a.start)-timeToMin(b.start)).forEach(item=>{
+      body += `<tr>
+        <td class="time">${item.start}–${item.end}</td>
+        <td>${escapeHtml(item.title)}</td>`;
+      for(let d=0; d<7; d++){
+        const status = (currentWeekData.statuses[item.id]||{})[d] || null;
+        const cls = status||'';
+        const sym = status==='done'?'✓':status==='missed'?'✕':status==='excused'?'○':'';
+        body += `<td class="status-cell"><div class="status-dot ${cls}" data-item="${item.id}" data-day="${d}">${sym}</div></td>`;
+      }
+      body += `<td><button class="del-btn" data-del="${item.id}">o'chirish</button></td></tr>`;
+    });
+    wrap.innerHTML = `<table class="routine-table">${head}${body}</table>`;
+
+    wrap.querySelectorAll('.status-dot').forEach(dot=>{
+      dot.addEventListener('click', async ()=>{
+        const itemId = dot.dataset.item, day = Number(dot.dataset.day);
+        const order = [null,'done','missed','excused'];
+        currentWeekData.statuses[itemId] = currentWeekData.statuses[itemId] || {};
+        const cur = currentWeekData.statuses[itemId][day] || null;
+        const next = order[(order.indexOf(cur)+1)%order.length];
+        if(next===null) delete currentWeekData.statuses[itemId][day];
+        else currentWeekData.statuses[itemId][day] = next;
+        await saveCurrentWeek();
+        renderRoutineTable(); renderTimeline(); renderStats();
+      });
+    });
+    wrap.querySelectorAll('[data-del]').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(!confirm("Bu ishni ro'yxatdan o'chirasizmi?")) return;
+        routine = routine.filter(r=>r.id!==btn.dataset.del);
+        await sSet('routine', routine);
+        renderRoutineTable(); renderTimeline();
+      });
+    });
+  }
+  function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+  // ---------- stats ----------
+  function computeStats(weekData){
+    let done=0, missed=0, excused=0;
+    routine.forEach(item=>{
+      const m = weekData.statuses[item.id]||{};
+      for(let d=0; d<7; d++){
+        if(m[d]==='done') done++;
+        else if(m[d]==='missed') missed++;
+        else if(m[d]==='excused') excused++;
+      }
+    });
+    const tracked = done+missed+excused;
+    const rate = tracked? Math.round(done/tracked*100) : 0;
+    return {done,missed,excused,rate,tracked};
+  }
+  async function renderStats(){
+    const cur = computeStats(currentWeekData);
+    document.getElementById('statDone').textContent = cur.done;
+    document.getElementById('statMissed').textContent = cur.missed;
+    document.getElementById('statExcused').textContent = cur.excused;
+    document.getElementById('statRate').textContent = cur.rate+'%';
+
+    prevWeekData = await loadWeek(weekOffset-1);
+    const prev = computeStats(prevWeekData);
+    document.getElementById('barCur').style.width = cur.rate+'%';
+    document.getElementById('barCurLbl').textContent = cur.rate+'%';
+    document.getElementById('barPrev').style.width = prev.rate+'%';
+    document.getElementById('barPrevLbl').textContent = prev.rate+'%';
+  }
+
+  // ---------- conclusions ----------
+  async function renderPastConclusions(){
+    const idx = (weeksIndex||[]).slice().sort().reverse();
+    const list = document.getElementById('pastList');
+    let html = '';
+    for(const wid of idx){
+      if(wid===currentWeekId) continue;
+      const d = await sGet('week:'+wid);
+      if(d && d.conclusion && d.conclusion.trim()){
+        html += `<div class="past-item"><div class="wk">${wid}</div><div class="txt">${escapeHtml(d.conclusion)}</div></div>`;
+      }
+    }
+    list.innerHTML = html || `<div class="empty-hint">Hali oldingi xulosalar yo'q.</div>`;
+  }
+
+  // ---------- AI analysis ----------
+  async function runAiAnalysis(){
+    const btn = document.getElementById('aiBtn');
+    const resultBox = document.getElementById('aiResult');
+    btn.disabled = true; btn.textContent = 'Tahlil qilinmoqda...';
+    resultBox.classList.remove('show');
+    try{
+      const cur = computeStats(currentWeekData);
+      const prev = computeStats(prevWeekData);
+      const prompt = `Sen shaxsiy intizom bo'yicha murabbiysan. Foydalanuvchining haftalik bajarilish statistikasi:
+Shu hafta: bajarildi ${cur.done}, bajarilmadi ${cur.missed}, sababli ${cur.excused}, bajarilish darajasi ${cur.rate}%.
+O'tgan hafta: bajarildi ${prev.done}, bajarilmadi ${prev.missed}, sababli ${prev.excused}, bajarilish darajasi ${prev.rate}%.
+Foydalanuvchining o'z xulosasi: "${(currentWeekData.conclusion||'').slice(0,500) || 'yozilmagan'}"
+O'zbek tilida, 4-5 gapdan iborat, qisqa, samimiy va motivatsion tahlil yoz. Raqamlarni tahlil qil, o'zgarishni ko'rsat va keyingi hafta uchun bitta aniq maslahat ber. Faqat matn qaytar, hech qanday sarlavha yoki markdown belgilarisiz.`;
+
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1000,
+          messages: [{ role: "user", content: prompt }]
+        })
+      });
+      const data = await response.json();
+      const text = (data.content||[]).map(c=>c.text||'').join('\\n').trim();
+      resultBox.textContent = text || "Tahlil olishda xatolik yuz berdi.";
+      resultBox.classList.add('show');
+    }catch(e){
+      resultBox.textContent = "Tahlilni yuklab bo'lmadi. Internetga ulanishni tekshiring.";
+      resultBox.classList.add('show');
+    }
+    btn.disabled = false; btn.textContent = '✨ AI tahlil olish';
+  }
+
+  // ---------- init / bindings ----------
+  async function switchWeek(offset){
+    weekOffset = offset;
+    const monday = targetMonday();
+    currentWeekId = getWeekId(monday);
+    currentWeekData = await sGet('week:'+currentWeekId) || { statuses:{}, conclusion:'' };
+    renderWeekNav(); renderTimeline(); renderRoutineTable(); await renderStats();
+    document.getElementById('conclusionText').value = currentWeekData.conclusion || '';
+    document.getElementById('saveStatus').textContent = '';
+    await renderPastConclusions();
+  }
+
+  async function init(){
+    routine = await sGet('routine') || [];
+    weeksIndex = await sGet('weeks-index') || [];
+    settings = await sGet('settings') || { soundOn:true };
+    document.getElementById('soundSwitch').classList.toggle('on', !!settings.soundOn);
+
+    await switchWeek(0);
+    tickClock();
+    setInterval(tickClock, 1000);
+    setInterval(()=>{ renderTimeline(); checkNotifications(); }, 5000);
+
+    document.getElementById('prevWeek').onclick = ()=> switchWeek(weekOffset-1);
+    document.getElementById('nextWeek').onclick = ()=> switchWeek(weekOffset+1);
+    document.getElementById('todayBtn').onclick = ()=> switchWeek(0);
+
+    document.querySelectorAll('.tab').forEach(t=>{
+      t.addEventListener('click', ()=>{
+        document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+        t.classList.add('active');
+        document.getElementById('panel-'+t.dataset.tab).classList.add('active');
+      });
+    });
+
+    document.getElementById('addItem').onclick = async ()=>{
+      const start = document.getElementById('newStart').value;
+      const end = document.getElementById('newEnd').value;
+      const title = document.getElementById('newTitle').value.trim();
+      if(!start || !end || !title){ alert("Iltimos barcha maydonlarni to'ldiring."); return; }
+      if(timeToMin(start)>=timeToMin(end)){ alert("Tugash vaqti boshlanish vaqtidan keyin bo'lishi kerak."); return; }
+      routine.push({ id: Date.now().toString(36)+Math.random().toString(36).slice(2,6), start, end, title });
+      await sSet('routine', routine);
+      document.getElementById('newTitle').value='';
+      renderRoutineTable(); renderTimeline();
+    };
+
+    document.getElementById('soundSwitch').onclick = async ()=>{
+      settings.soundOn = !settings.soundOn;
+      document.getElementById('soundSwitch').classList.toggle('on', settings.soundOn);
+      await sSet('settings', settings);
+      if(settings.soundOn){
+        try{ audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)(); audioCtx.resume(); beep(880,150,'sine'); }catch(e){}
+      }
+    };
+
+    document.getElementById('saveConclusion').onclick = async ()=>{
+      currentWeekData.conclusion = document.getElementById('conclusionText').value;
+      await saveCurrentWeek();
+      document.getElementById('saveStatus').textContent = 'Saqlandi ✓';
+      setTimeout(()=> document.getElementById('saveStatus').textContent='', 2000);
+      await renderPastConclusions();
+    };
+
+    document.getElementById('aiBtn').onclick = runAiAnalysis;
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
