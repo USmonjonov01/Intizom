@@ -148,6 +148,16 @@
   td.today-col{background:rgba(232,163,61,.06);}
 
   /* ---- STATISTIKA ---- */
+  .split-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:16px;}
+  .split-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;}
+  #dayPickSel{
+    background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:7px 10px;font-family:var(--font-body);font-size:12px;cursor:pointer;
+  }
+  #dayPickSel:focus{outline:none;border-color:var(--accent);}
+  #trendChart{margin-top:14px;}
+  #trendChart svg{display:block;}
+  #dayPie svg{flex-shrink:0;}
   .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:18px;}
   .stat-box{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:14px;}
   .stat-box .num{font-family:var(--font-display);font-size:28px;color:var(--accent);}
@@ -260,9 +270,22 @@
   <!-- STATISTIKA -->
   <section class="view" id="view-stats">
     <div class="card">
-      <h2 style="font-family:var(--font-display);margin-top:0">Shu hafta</h2>
+      <h2 style="font-family:var(--font-display);margin-top:0">Bajarilgan va bajarilmagan ishlar tendensiyasi</h2>
       <div class="stat-grid" id="statThis"></div>
-      <div class="bars" id="barsThis"></div>
+      <div id="trendChart"></div>
+    </div>
+    <div class="split-row">
+      <div class="card" style="flex:1;min-width:280px">
+        <div class="split-head">
+          <h2 style="font-family:var(--font-display);margin:0">Bir kunlik ishlar taqsimoti</h2>
+          <select id="dayPickSel"></select>
+        </div>
+        <div id="dayPie"></div>
+      </div>
+      <div class="card" style="flex:1;min-width:280px">
+        <h2 style="font-family:var(--font-display);margin-top:0">Haftalik bajarilgan ishlar</h2>
+        <div class="bars" id="barsThis"></div>
+      </div>
     </div>
     <div class="card">
       <h2 style="font-family:var(--font-display);margin-top:0">O'tgan hafta bilan taqqoslash</h2>
@@ -569,6 +592,114 @@ function weekCounts(weekId, days){
   return { done, excused, missed, total, perDay };
 }
 
+let dayPickInitialized = false;
+
+function dayCounts(weekId, dayKey, dayDate){
+  const now = new Date(); now.setHours(0,0,0,0);
+  const isFuture = dayDate.getTime() > now.getTime();
+  let done=0, excused=0, missed=0;
+  routines.forEach(r=>{
+    const rec = getWeekRecord(r.id, weekId);
+    const st = rec && rec.statuses ? rec.statuses[dayKey] : null;
+    if(st==='done') done++;
+    else if(st==='excused') excused++;
+    else if(!isFuture) missed++;
+  });
+  return { done, excused, missed, total: routines.length, isFuture };
+}
+
+function renderDonut(counts){
+  const total = counts.done + counts.excused + counts.missed;
+  const r = 60, C = 2*Math.PI*r;
+  const pct = v => total ? Math.round(v/total*100) : 0;
+  let offset = 0, circles = '';
+  [
+    {v:counts.done, color:'var(--done)'},
+    {v:counts.excused, color:'var(--excused)'},
+    {v:counts.missed, color:'var(--missed)'},
+  ].forEach(seg=>{
+    if(seg.v<=0) return;
+    const len = total ? seg.v/total*C : 0;
+    circles += `<circle cx="90" cy="90" r="${r}" fill="none" stroke="${seg.color}" stroke-width="26" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-offset}" transform="rotate(-90 90 90)"/>`;
+    offset += len;
+  });
+  return `
+    <div style="display:flex;align-items:center;gap:22px;flex-wrap:wrap">
+      <svg width="180" height="180" viewBox="0 0 180 180">
+        ${total ? circles : `<circle cx="90" cy="90" r="${r}" fill="none" stroke="var(--border)" stroke-width="26"/>`}
+        <text x="90" y="96" text-anchor="middle" font-family="var(--font-display)" font-size="22" fill="var(--text)">${pct(counts.done)}%</text>
+      </svg>
+      <div class="legend" style="flex-direction:column;gap:10px;align-items:flex-start;margin-top:0">
+        <span><span class="dot" style="background:var(--done)"></span>Bajarildi ${pct(counts.done)}% (${counts.done})</span>
+        <span><span class="dot" style="background:var(--excused)"></span>Sababli ${pct(counts.excused)}% (${counts.excused})</span>
+        <span><span class="dot" style="background:var(--missed)"></span>Bajarilmagan ${pct(counts.missed)}% (${counts.missed})</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderDayPie(){
+  const cur = getWeekInfo(0);
+  const sel = document.getElementById('dayPickSel');
+  if(!dayPickInitialized){
+    sel.innerHTML = cur.days.map(d=>`<option value="${d.key}">${DAY_LABELS_FULL[DAY_KEYS.indexOf(d.key)]}</option>`).join('');
+    const todayKey = todayKeyInWeek(cur.days);
+    sel.value = todayKey || cur.days[0].key;
+    sel.addEventListener('change', renderDayPie);
+    dayPickInitialized = true;
+  }
+  const dayKey = sel.value;
+  const day = cur.days.find(d=>d.key===dayKey);
+  const counts = dayCounts(cur.weekId, dayKey, day.date);
+  document.getElementById('dayPie').innerHTML = counts.total===0
+    ? '<div class="empty">Hali ish qo\'shilmagan.</div>'
+    : renderDonut(counts);
+}
+
+function renderTrend(){
+  const points = [];
+  for(let o=-5; o<=0; o++) points.push(getWeekInfo(o));
+  const data = points.map(w=>{
+    const c = weekCounts(w.weekId, w.days);
+    const label = w.weekId.includes('-W') ? 'W'+w.weekId.split('-W')[1] : w.weekId;
+    return { label, done:c.done, missed:c.missed };
+  });
+  const maxVal = Math.max(1, ...data.map(d=>Math.max(d.done, d.missed)));
+  const W=620, H=210, padL=30, padR=10, padT=12, padB=22;
+  const plotW = W-padL-padR, plotH = H-padT-padB;
+  const stepX = data.length>1 ? plotW/(data.length-1) : 0;
+  const xAt = i => padL + stepX*i;
+  const yAt = v => padT + plotH - (v/maxVal*plotH);
+
+  let grid='';
+  for(let g=0; g<=4; g++){
+    const val = Math.round(maxVal/4*g);
+    const y = yAt(val);
+    grid += `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="var(--border)" stroke-dasharray="3,3"/>`;
+    grid += `<text x="${padL-6}" y="${y+3}" font-size="9" fill="var(--text-dim)" text-anchor="end" font-family="var(--font-mono)">${val}</text>`;
+  }
+  let xlabels='';
+  data.forEach((d,i)=>{ xlabels += `<text x="${xAt(i)}" y="${H-6}" font-size="9" fill="var(--text-dim)" text-anchor="middle" font-family="var(--font-mono)">${d.label}</text>`; });
+  const donePts = data.map((d,i)=>`${xAt(i)},${yAt(d.done)}`).join(' ');
+  const missPts = data.map((d,i)=>`${xAt(i)},${yAt(d.missed)}`).join(' ');
+  const doneDots = data.map((d,i)=>`<circle cx="${xAt(i)}" cy="${yAt(d.done)}" r="3.5" fill="var(--done)"/>`).join('');
+  const missDots = data.map((d,i)=>`<circle cx="${xAt(i)}" cy="${yAt(d.missed)}" r="3.5" fill="var(--missed)"/>`).join('');
+
+  document.getElementById('trendChart').innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">
+      ${grid}
+      <polyline points="${donePts}" fill="none" stroke="var(--done)" stroke-width="2"/>
+      <polyline points="${missPts}" fill="none" stroke="var(--missed)" stroke-width="2"/>
+      ${doneDots}${missDots}
+      ${xlabels}
+    </svg>
+    <div class="legend" style="justify-content:center;margin-top:4px">
+      <span><span class="dot" style="background:var(--done)"></span>Bajarilgan</span>
+      <span><span class="dot" style="background:var(--missed)"></span>Bajarilmagan</span>
+    </div>
+  `;
+}
+
 function renderStats(){
   const cur = getWeekInfo(0);
   const prev = getWeekInfo(-1);
@@ -583,6 +714,9 @@ function renderStats(){
     <div class="stat-box"><div class="num">${curC.missed}</div><div class="lbl">Bajarilmagan</div></div>
     <div class="stat-box"><div class="num">${curC.total}</div><div class="lbl">Jami vazifa</div></div>
   `;
+
+  renderTrend();
+  renderDayPie();
 
   const bars = document.getElementById('barsThis');
   bars.innerHTML='';
@@ -694,7 +828,7 @@ function playChime(){
 document.getElementById('notifToggle').addEventListener('click', ()=>{
   notifOn = !notifOn;
   document.getElementById('notifToggle').classList.toggle('on', notifOn);
-  if(notifOn){ getAudioCtx(); playChime(); }
+  if(notifOn){ getAudioCtx(); playChime(); speak("Ovozli eslatmalar yoqildi"); }
 });
 function speak(text){
   playChime();
