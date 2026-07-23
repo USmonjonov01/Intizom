@@ -108,6 +108,7 @@
   .ruler .block{position:absolute;top:8px;height:20px;border-radius:5px;background:rgba(232,163,61,.35);border:1px solid var(--accent);}
   .ruler .block.done{background:rgba(62,189,126,.35);border-color:var(--done);}
   .ruler .block.excused{background:rgba(108,155,207,.35);border-color:var(--excused);}
+  .ruler .block.partial{background:rgba(232,163,61,.3);border-color:var(--accent);}
   .ruler .now-line{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 6px #fff;}
 
   .task-row{
@@ -123,7 +124,17 @@
   }
   .status-btn.done{background:rgba(62,189,126,.15);border-color:var(--done);color:var(--done);}
   .status-btn.excused{background:rgba(108,155,207,.15);border-color:var(--excused);color:var(--excused);}
+  .status-btn.partial{background:rgba(232,163,61,.15);border-color:var(--accent);color:var(--accent);}
+  .status-btn.missed-past{border-color:rgba(224,97,107,.35);}
+  .status-btn{font-family:var(--font-mono);}
   .status-btn.future{opacity:.35;cursor:not-allowed;}
+  .rating-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:16px 0 4px;}
+  .rating-btn{
+    border:1.5px solid var(--border);background:var(--surface-2);color:var(--text);
+    border-radius:9px;padding:12px 0;font-family:var(--font-mono);font-weight:700;font-size:15px;cursor:pointer;transition:.15s;
+  }
+  .rating-btn:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px);}
+  .rating-hint{font-size:12px;color:var(--text-dim);margin:2px 0 0;}
   .del-btn{background:transparent;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:4px 6px;}
   .del-btn:hover{color:var(--missed);}
 
@@ -324,6 +335,18 @@
   </div>
 </div>
 
+<!-- rating modal -->
+<div class="overlay" id="ratingOverlay">
+  <div class="modal">
+    <h3>Ishni qanday bajardingiz?</h3>
+    <p class="rating-hint">1 dan 10 gacha baho bering. 5 va undan yuqori baho — ish bajarilgan hisoblanadi, undan past bo'lsa — chala bajarilgan deb belgilanadi.</p>
+    <div class="rating-grid" id="ratingGrid"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="cancelRating">Bekor qilish</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const API = "https://6a468bbea268c8be2ce813b4.mockapi.io/api/v1";
 const DAY_KEYS = ['mon','tue','wed','thu','fri','sat','sun'];
@@ -431,10 +454,56 @@ async function setStatus(routineId, weekId, dayKey, status){
   const updated = await apiPut(`/routine/${routineId}/weeks/${rec.id}`, { statuses });
   rec.statuses = updated.statuses || statuses;
 }
-function nextStatus(cur){
-  if(cur === 'done') return 'excused';
-  if(cur === 'excused') return null;
-  return 'done';
+function statusKind(val){
+  if(val===undefined || val===null || val==='') return 'none';
+  if(val==='excused') return 'excused';
+  const n = Number(val);
+  if(!isNaN(n)) return n>=5 ? 'done' : 'partial';
+  return 'none';
+}
+function statusLabel(val){
+  const kind = statusKind(val);
+  if(kind==='done' || kind==='partial') return String(val);
+  if(kind==='excused') return '&#9711;';
+  return '';
+}
+function statusClass(val){
+  const kind = statusKind(val);
+  return kind==='none' ? '' : kind;
+}
+
+let pendingRating = null; // {rid, day, week}
+const ratingOverlay = document.getElementById('ratingOverlay');
+const ratingGrid = document.getElementById('ratingGrid');
+ratingGrid.innerHTML = Array.from({length:10}, (_,i)=>i+1)
+  .map(n=>`<button type="button" class="rating-btn" data-score="${n}">${n}</button>`).join('');
+ratingGrid.querySelectorAll('.rating-btn').forEach(b=>{
+  b.addEventListener('click', async ()=>{
+    if(!pendingRating) return;
+    const { rid, day, week } = pendingRating;
+    ratingOverlay.classList.remove('open');
+    pendingRating = null;
+    try{ await setStatus(rid, week, day, Number(b.dataset.score)); renderAll(); }
+    catch(e){ showError("Holatni saqlab bo'lmadi."); }
+  });
+});
+document.getElementById('cancelRating').addEventListener('click', ()=>{ ratingOverlay.classList.remove('open'); pendingRating = null; });
+ratingOverlay.addEventListener('click', e=>{ if(e.target===ratingOverlay){ ratingOverlay.classList.remove('open'); pendingRating=null; } });
+
+async function handleStatusClick(rid, day, week, curVal){
+  const kind = statusKind(curVal);
+  if(kind==='none'){
+    pendingRating = { rid, day, week };
+    ratingOverlay.classList.add('open');
+    return;
+  }
+  if(kind==='done' || kind==='partial'){
+    try{ await setStatus(rid, week, day, 'excused'); renderAll(); }
+    catch(e){ showError("Holatni saqlab bo'lmadi."); }
+    return;
+  }
+  try{ await setStatus(rid, week, day, null); renderAll(); }
+  catch(e){ showError("Holatni saqlab bo'lmadi."); }
 }
 
 // ---------- Tabs ----------
@@ -479,8 +548,9 @@ function renderToday(){
     if(e<=s) return;
     const rec = getWeekRecord(r.id, weekId);
     const st = rec && rec.statuses ? rec.statuses[dayKey] : null;
+    const kind = statusKind(st);
     const block = document.createElement('div');
-    block.className = 'block' + (st==='done'?' done':st==='excused'?' excused':'');
+    block.className = 'block' + (kind==='done'?' done':kind==='excused'?' excused':kind==='partial'?' partial':'');
     block.style.left = (s/1440*100)+'%';
     block.style.width = Math.max((e-s)/1440*100,0.6)+'%';
     block.title = r.title;
@@ -505,22 +575,18 @@ function renderToday(){
     const row = document.createElement('div');
     const s=timeToMin(r.start||'00:00'), e=timeToMin(r.end||'00:00');
     row.className='task-row' + (nowMin>=s && nowMin<e ? ' is-now' : '');
+    const kind = statusKind(st);
     row.innerHTML = `
       <div class="t-time">${r.start||'--:--'}&ndash;${r.end||'--:--'}</div>
       <div class="t-title">${escapeHtml(r.title||'')}</div>
-      <button class="status-btn ${st==='done'?'done':st==='excused'?'excused':''}" data-rid="${r.id}" data-day="${dayKey}" data-week="${weekId}">${st==='done'?'&#10003;':st==='excused'?'&#9711;':''}</button>
+      <button class="status-btn ${statusClass(st)}" data-rid="${r.id}" data-day="${dayKey}" data-week="${weekId}" data-val="${st==null?'':st}">${statusLabel(st)}</button>
       <button class="del-btn" data-del="${r.id}" title="O'chirish">&#10005;</button>
     `;
     list.appendChild(row);
   });
   list.querySelectorAll('.status-btn').forEach(b=>{
-    b.addEventListener('click', async ()=>{
-      const cur = b.classList.contains('done')?'done':b.classList.contains('excused')?'excused':null;
-      const ns = nextStatus(cur);
-      try{
-        await setStatus(b.dataset.rid, b.dataset.week, b.dataset.day, ns);
-        renderAll();
-      }catch(e){ showError("Holatni saqlab bo'lmadi."); }
+    b.addEventListener('click', ()=>{
+      handleStatusClick(b.dataset.rid, b.dataset.day, b.dataset.week, b.dataset.val);
     });
   });
   list.querySelectorAll('[data-del]').forEach(b=>{
@@ -551,20 +617,18 @@ function renderWeek(){
     days.forEach(d=>{
       const st = rec && rec.statuses ? rec.statuses[d.key] : null;
       const isFuture = d.date.getTime() > now.getTime();
-      const cls = st==='done'?'done':st==='excused'?'excused':'';
+      const isPastUnmarked = !isFuture && statusKind(st)==='none';
+      const cls = statusClass(st) + (isPastUnmarked ? ' missed-past' : '');
       const disabled = isFuture ? 'future' : '';
       const isToday = d.key===todayKey ? 'today-col':'';
-      html += `<td class="${isToday}"><button class="status-btn ${cls} ${disabled}" ${isFuture?'disabled':''} data-rid="${r.id}" data-day="${d.key}" data-week="${weekId}">${st==='done'?'&#10003;':st==='excused'?'&#9711;':''}</button></td>`;
+      html += `<td class="${isToday}"><button class="status-btn ${cls} ${disabled}" ${isFuture?'disabled':''} data-rid="${r.id}" data-day="${d.key}" data-week="${weekId}" data-val="${st==null?'':st}">${statusLabel(st)}</button></td>`;
     });
     html += '</tr>';
   });
   table.innerHTML = html;
   table.querySelectorAll('.status-btn:not(.future)').forEach(b=>{
-    b.addEventListener('click', async ()=>{
-      const cur = b.classList.contains('done')?'done':b.classList.contains('excused')?'excused':null;
-      const ns = nextStatus(cur);
-      try{ await setStatus(b.dataset.rid, b.dataset.week, b.dataset.day, ns); renderAll(); }
-      catch(e){ showError("Holatni saqlab bo'lmadi."); }
+    b.addEventListener('click', ()=>{
+      handleStatusClick(b.dataset.rid, b.dataset.day, b.dataset.week, b.dataset.val);
     });
   });
 }
@@ -574,7 +638,7 @@ document.getElementById('weekNext').addEventListener('click',()=>{weekOffset++; 
 
 function weekCounts(weekId, days){
   const now = new Date(); now.setHours(0,0,0,0);
-  let done=0, excused=0, missed=0, total=0;
+  let done=0, partial=0, excused=0, missed=0, total=0, scoreSum=0, scoreCount=0;
   const perDay = {};
   days.forEach(d=>perDay[d.key] = {done:0, total:0});
   routines.forEach(r=>{
@@ -583,13 +647,16 @@ function weekCounts(weekId, days){
       if(d.date.getTime() > now.getTime()) return; // don't count future days
       total++;
       perDay[d.key].total++;
-      const st = rec && rec.statuses ? rec.statuses[d.key] : null;
-      if(st==='done'){ done++; perDay[d.key].done++; }
-      else if(st==='excused') excused++;
-      else missed++;
+      const val = rec && rec.statuses ? rec.statuses[d.key] : null;
+      const kind = statusKind(val);
+      if(kind==='done'){ done++; perDay[d.key].done++; scoreSum+=Number(val); scoreCount++; }
+      else if(kind==='partial'){ partial++; scoreSum+=Number(val); scoreCount++; }
+      else if(kind==='excused'){ excused++; }
+      else { missed++; }
     });
   });
-  return { done, excused, missed, total, perDay };
+  const avgScore = scoreCount ? Math.round(scoreSum/scoreCount*10)/10 : null;
+  return { done, partial, excused, missed, total, perDay, avgScore };
 }
 
 let dayPickInitialized = false;
@@ -597,24 +664,27 @@ let dayPickInitialized = false;
 function dayCounts(weekId, dayKey, dayDate){
   const now = new Date(); now.setHours(0,0,0,0);
   const isFuture = dayDate.getTime() > now.getTime();
-  let done=0, excused=0, missed=0;
+  let done=0, partial=0, excused=0, missed=0;
   routines.forEach(r=>{
     const rec = getWeekRecord(r.id, weekId);
-    const st = rec && rec.statuses ? rec.statuses[dayKey] : null;
-    if(st==='done') done++;
-    else if(st==='excused') excused++;
+    const val = rec && rec.statuses ? rec.statuses[dayKey] : null;
+    const kind = statusKind(val);
+    if(kind==='done') done++;
+    else if(kind==='partial') partial++;
+    else if(kind==='excused') excused++;
     else if(!isFuture) missed++;
   });
-  return { done, excused, missed, total: routines.length, isFuture };
+  return { done, partial, excused, missed, total: routines.length, isFuture };
 }
 
 function renderDonut(counts){
-  const total = counts.done + counts.excused + counts.missed;
+  const total = counts.done + counts.partial + counts.excused + counts.missed;
   const r = 60, C = 2*Math.PI*r;
   const pct = v => total ? Math.round(v/total*100) : 0;
   let offset = 0, circles = '';
   [
     {v:counts.done, color:'var(--done)'},
+    {v:counts.partial, color:'var(--accent)'},
     {v:counts.excused, color:'var(--excused)'},
     {v:counts.missed, color:'var(--missed)'},
   ].forEach(seg=>{
@@ -630,7 +700,8 @@ function renderDonut(counts){
         <text x="90" y="96" text-anchor="middle" font-family="var(--font-display)" font-size="22" fill="var(--text)">${pct(counts.done)}%</text>
       </svg>
       <div class="legend" style="flex-direction:column;gap:10px;align-items:flex-start;margin-top:0">
-        <span><span class="dot" style="background:var(--done)"></span>Bajarildi ${pct(counts.done)}% (${counts.done})</span>
+        <span><span class="dot" style="background:var(--done)"></span>Bajarildi (5-10) ${pct(counts.done)}% (${counts.done})</span>
+        <span><span class="dot" style="background:var(--accent)"></span>Chala bajarilgan (1-4) ${pct(counts.partial)}% (${counts.partial})</span>
         <span><span class="dot" style="background:var(--excused)"></span>Sababli ${pct(counts.excused)}% (${counts.excused})</span>
         <span><span class="dot" style="background:var(--missed)"></span>Bajarilmagan ${pct(counts.missed)}% (${counts.missed})</span>
       </div>
